@@ -52,9 +52,16 @@ class CerebroAgent:
         for rel in extracted.get("relationships", []):
             self.store.link_related_entities(rel["entity1"], rel["entity2"])
 
+        # Fallback: if extraction produced no facts, surface raw search snippets
+        # so the UI still has something useful to show instead of a dead end.
+        raw_snippets = []
+        if not saved_facts:
+            raw_snippets = [r["content"][:300] for r in search_results[:3] if r.get("content")]
+
         return {
             "query_id": query_id,
             "new_facts": saved_facts,
             "cross_session_context": cross_session,
-            "entities": extracted.get("entities", [])
+            "entities": extracted.get("entities", []),
+            "raw_snippets": raw_snippets
         }
