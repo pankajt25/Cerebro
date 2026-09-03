@@ -4,11 +4,25 @@ Wraps FalkorDB Cypher queries into clean Python functions.
 """
 from falkordb import FalkorDB
 import uuid
+import os
 from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class GraphStore:
-    def __init__(self, host='localhost', port=6379, graph_name='cerebro'):
-        self.db = FalkorDB(host=host, port=port)
+    def __init__(self, host=None, port=None, username=None, password=None, graph_name='cerebro'):
+        # Fall back to env vars, then to local defaults if nothing is set
+        host = host or os.getenv("FALKORDB_HOST", "localhost")
+        port = int(port or os.getenv("FALKORDB_PORT", 6379))
+        username = username or os.getenv("FALKORDB_USERNAME")
+        password = password or os.getenv("FALKORDB_PASSWORD")
+
+        if username and password:
+            self.db = FalkorDB(host=host, port=port, username=username, password=password)
+        else:
+            self.db = FalkorDB(host=host, port=port)
+
         self.graph = self.db.select_graph(graph_name)
 
     def create_session(self, topic):
