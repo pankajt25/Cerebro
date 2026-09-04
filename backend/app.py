@@ -57,10 +57,10 @@ st.markdown("""
     }
 
     div[data-testid="stChatMessage"] {
-        background: rgba(168, 85, 247, 0.06);
+        background: rgba(168, 85, 247, 0.06) !important;
         border: 1px solid rgba(168, 85, 247, 0.15);
         border-radius: 14px;
-        padding: 0.5rem 0.2rem;
+        padding: 0.5rem 0.8rem;
         margin-bottom: 0.6rem;
     }
 
@@ -134,6 +134,56 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = None
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "failed_query" not in st.session_state:
+    st.session_state.failed_query = None
+
+def run_query(query_text):
+    """Runs a query through the agent and renders the response. Returns True on success."""
+    with st.chat_message("assistant", avatar="🧠"):
+        with st.spinner("🔮 Researching and building the knowledge graph..."):
+            try:
+                result = agent.process_query(st.session_state.session_id, query_text)
+            except Exception as e:
+                st.error("Something went wrong while researching that.")
+                st.caption(f"Details: {e}")
+                if st.button("🔁 Retry", key=f"retry_{len(st.session_state.messages)}"):
+                    st.session_state.failed_query = query_text
+                    st.rerun()
+                return False
+
+        if result.get("search_failed"):
+            answer = "I couldn't reach the search service just now — this is usually temporary. Please try again in a moment."
+        elif result["new_facts"]:
+            answer_lines = ["**Here's what I found:**\n"]
+            for fact in result["new_facts"]:
+                answer_lines.append(f"- {fact['text']}")
+            answer = "\n".join(answer_lines)
+        elif result.get("raw_snippets"):
+            answer_lines = ["I couldn't structure this into clean facts, but here's what I found:\n"]
+            for snippet in result["raw_snippets"]:
+                answer_lines.append(f"- {snippet}")
+            answer = "\n".join(answer_lines)
+        else:
+            answer = "I searched but couldn't find anything useful — try rephrasing?"
+
+        st.markdown(answer)
+
+        if result.get("cross_session_context"):
+            with st.expander("🔗 Recalled from a previous session", expanded=True):
+                for item in result["cross_session_context"]:
+                    st.markdown(f"- *\"{item[2]}\"* — asked on a past session ({item[1][:10]})")
+
+        if result.get("entities"):
+            entity_tags = " ".join(f"`{e['name']}`" for e in result["entities"])
+            st.markdown(f'<p class="cerebro-caption">🏷️ Entities: {entity_tags}</p>', unsafe_allow_html=True)
+
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": answer,
+        "cross_session": result.get("cross_session_context", [])
+    })
+    st.session_state.failed_query = None
+    return True
 
 # --- Sidebar ---
 with st.sidebar:
@@ -154,6 +204,7 @@ with st.sidebar:
             if topic.strip():
                 st.session_state.session_id = store.create_session(topic)
                 st.session_state.messages = []
+                st.session_state.failed_query = None
                 st.rerun()
             else:
                 st.warning("Give it a topic first!")
@@ -163,6 +214,7 @@ with st.sidebar:
         if st.button("🔁 End Session & Start New", use_container_width=True):
             st.session_state.session_id = None
             st.session_state.messages = []
+            st.session_state.failed_query = None
             st.rerun()
 
     st.divider()
@@ -209,48 +261,12 @@ for msg in st.session_state.messages:
                 for item in msg["cross_session"]:
                     st.markdown(f"- *\"{item[2]}\"* — asked on a past session ({item[1][:10]})")
 
+# Retry a previously failed query automatically
+if st.session_state.failed_query:
+    run_query(st.session_state.failed_query)
+
 if user_input := st.chat_input("Ask something to research..."):
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user", avatar="🧑‍💻"):
         st.markdown(user_input)
-
-    with st.chat_message("assistant", avatar="🧠"):
-        with st.spinner("🔮 Researching and building the knowledge graph..."):
-            try:
-                result = agent.process_query(st.session_state.session_id, user_input)
-            except Exception as e:
-                st.error("Something went wrong while researching that. Please try again or rephrase your question.")
-                st.caption(f"Details: {e}")
-                st.stop()
-
-        if result.get("search_failed"):
-            answer = "I couldn't reach the search service just now — this is usually temporary. Please try again in a moment."
-        elif result["new_facts"]:
-            answer_lines = ["**Here's what I found:**\n"]
-            for fact in result["new_facts"]:
-                answer_lines.append(f"- {fact['text']}")
-            answer = "\n".join(answer_lines)
-        elif result.get("raw_snippets"):
-            answer_lines = ["I couldn't structure this into clean facts, but here's what I found:\n"]
-            for snippet in result["raw_snippets"]:
-                answer_lines.append(f"- {snippet}")
-            answer = "\n".join(answer_lines)
-        else:
-            answer = "I searched but couldn't find anything useful — try rephrasing?"
-
-        st.markdown(answer)
-
-        if result.get("cross_session_context"):
-            with st.expander("🔗 Recalled from a previous session", expanded=True):
-                for item in result["cross_session_context"]:
-                    st.markdown(f"- *\"{item[2]}\"* — asked on a past session ({item[1][:10]})")
-
-        if result.get("entities"):
-            entity_tags = " ".join(f"`{e['name']}`" for e in result["entities"])
-            st.markdown(f'<p class="cerebro-caption">🏷️ Entities: {entity_tags}</p>', unsafe_allow_html=True)
-
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": answer,
-        "cross_session": result.get("cross_session_context", [])
-    })
+    run_query(user_input)
