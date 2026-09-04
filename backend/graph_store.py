@@ -5,14 +5,15 @@ Wraps FalkorDB Cypher queries into clean Python functions.
 from falkordb import FalkorDB
 import uuid
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
 
+STALE_AFTER_DAYS = 7
+
 class GraphStore:
     def __init__(self, host=None, port=None, username=None, password=None, graph_name='cerebro'):
-        # Fall back to env vars, then to local defaults if nothing is set
         host = host or os.getenv("FALKORDB_HOST", "localhost")
         port = int(port or os.getenv("FALKORDB_PORT", 6379))
         username = username or os.getenv("FALKORDB_USERNAME")
@@ -53,11 +54,37 @@ class GraphStore:
             """
             MATCH (e:Entity {name: $name})<-[:ABOUT]-(f:Fact)
             OPTIONAL MATCH (f)-[:SOURCED_FROM]->(src:Source)
-            RETURN f.text, f.confidence, src.url
+            RETURN f.text, f.confidence, src.url, f.last_updated
             """,
             {"name": entity_name}
         )
         return result.result_set
+
+    def is_entity_stale(self, entity_name):
+        """
+        Returns True if this entity has no facts yet, or its newest fact
+        is older than STALE_AFTER_DAYS. Used to decide whether to re-search
+        instead of relying on cached graph data.
+        """
+        result = self.graph.query(
+            """
+            MATCH (e:Entity {name: $name})<-[:ABOUT]-(f:Fact)
+            RETURN f.last_updated
+            ORDER BY f.last_updated DESC
+            LIMIT 1
+            """,
+            {"name": entity_name}
+        )
+        rows = result.result_set
+        if not rows or not rows[0][0]:
+            return True  # never seen this entity — treat as stale (needs research)
+
+        try:
+            last_updated = datetime.fromisoformat(rows[0][0])
+            age = datetime.now(timezone.utc) - last_updated
+            return age > timedelta(days=STALE_AFTER_DAYS)
+        except (ValueError, TypeError):
+            return True  # if we can't parse it, be safe and refresh
 
     def get_cross_session_context(self, entity_names, current_session_id):
         """Recall what we discussed about these entities in OTHER sessions."""
@@ -100,11 +127,12 @@ class GraphStore:
 
     def save_fact(self, entity_name, entity_type, fact_text, confidence, source_url, session_id):
         fact_id = str(uuid.uuid4())
+        timestamp = datetime.now(timezone.utc).isoformat()
         self.graph.query(
             """
             MERGE (e:Entity {name: $entity_name})
             ON CREATE SET e.type = $entity_type
-            CREATE (f:Fact {id: $fact_id, text: $fact_text, confidence: $confidence})
+            CREATE (f:Fact {id: $fact_id, text: $fact_text, confidence: $confidence, last_updated: $ts})
             CREATE (f)-[:ABOUT]->(e)
             MERGE (src:Source {url: $source_url})
             CREATE (f)-[:SOURCED_FROM]->(src)
@@ -115,7 +143,7 @@ class GraphStore:
             {
                 "entity_name": entity_name, "entity_type": entity_type,
                 "fact_id": fact_id, "fact_text": fact_text, "confidence": confidence,
-                "source_url": source_url, "session_id": session_id
+                "source_url": source_url, "session_id": session_id, "ts": timestamp
             }
         )
         return fact_id
