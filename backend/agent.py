@@ -31,9 +31,15 @@ class CerebroAgent:
         return last_result
 
     def _process_once(self, session_id, query_text):
-        query_id = self.store.create_query(session_id, query_text)
+        # Step 0: record the query — never let a DB hiccup crash the whole pipeline
+        query_id = None
+        try:
+            query_id = self.store.create_query(session_id, query_text)
+        except Exception as e:
+            print(f"Failed to record query in graph (continuing without it): {e}")
 
-        # Step 1: search the web (search.py already retries internally)
+        # Step 1: search the web (search.py already retries internally, skips
+        # retries entirely for non-retryable errors like oversized queries)
         search_results = self.search.search(query_text, max_results=5)
 
         # Step 2: extract structured knowledge from results
@@ -50,15 +56,15 @@ class CerebroAgent:
             print(f"Cross-session lookup failed: {e}")
             cross_session = []
 
-        # Step 4: link query to entities
-        for entity in extracted.get("entities", []):
-            try:
-                self.store.link_query_to_entity(query_id, entity["name"], entity["type"])
-            except Exception as e:
-                print(f"Failed to link entity {entity.get('name')}: {e}")
+        # Step 4: link query to entities (only if we successfully created the query node)
+        if query_id:
+            for entity in extracted.get("entities", []):
+                try:
+                    self.store.link_query_to_entity(query_id, entity["name"], entity["type"])
+                except Exception as e:
+                    print(f"Failed to link entity {entity.get('name')}: {e}")
 
-        # Step 5: save new facts (this naturally refreshes stale ones too,
-        # since we always re-search live rather than only reading cache)
+        # Step 5: save new facts
         saved_facts = []
         entity_type_map = {e["name"]: e["type"] for e in extracted.get("entities", [])}
         for fact in extracted.get("facts", []):
