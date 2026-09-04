@@ -72,9 +72,16 @@ if user_input := st.chat_input("Ask something to research..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Researching..."):
-            result = agent.process_query(st.session_state.session_id, user_input)
+            try:
+                result = agent.process_query(st.session_state.session_id, user_input)
+            except Exception as e:
+                st.error("Something went wrong while researching that. Please try again or rephrase your question.")
+                st.caption(f"Details: {e}")
+                st.stop()
 
-        if result["new_facts"]:
+        if result.get("search_failed"):
+            answer = "I couldn't reach the search service just now — this is usually temporary. Please try again in a moment."
+        elif result["new_facts"]:
             answer_lines = ["Here's what I found:\n"]
             for fact in result["new_facts"]:
                 answer_lines.append(f"- {fact['text']}")
@@ -89,16 +96,16 @@ if user_input := st.chat_input("Ask something to research..."):
 
         st.markdown(answer)
 
-        if result["cross_session_context"]:
+        if result.get("cross_session_context"):
             with st.expander("🔗 Recalled from a previous session", expanded=True):
                 for item in result["cross_session_context"]:
                     st.markdown(f"- *\"{item[2]}\"* — asked on a past session ({item[1][:10]})")
 
-        if result["entities"]:
+        if result.get("entities"):
             st.caption("Entities: " + ", ".join(e["name"] for e in result["entities"]))
 
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
-        "cross_session": result["cross_session_context"]
+        "cross_session": result.get("cross_session_context", [])
     })

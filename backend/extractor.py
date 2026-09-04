@@ -1,10 +1,10 @@
 """
 Cerebro's extraction layer.
-Uses Groq (free tier, Llama 3.3 70B) to pull structured entities + facts
-out of search results.
+Uses Groq to pull structured entities + facts out of search results.
 """
 import os
 import json
+import time
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -18,7 +18,7 @@ class Extractor:
     def extract(self, query_text, search_results):
         """
         Given the user's query and search results, extract structured
-        entities and facts as JSON.
+        entities and facts as JSON. Retries on transient failures.
         Returns: {"entities": [...], "facts": [...], "relationships": [...]}
         """
         context = "\n\n".join(
@@ -44,17 +44,30 @@ Return ONLY valid JSON, no other text, in this exact format:
 
 Keep entity names consistent across entities/facts/relationships. Extract 3-8 facts max, only the most relevant ones."""
 
-        response = self.client.chat.completions.create(
-            model="openai/gpt-oss-120b",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"}
-        )
+        last_error = None
+        for attempt in range(3):
+            try:
+                response = self.client.chat.completions.create(
+                    model="openai/gpt-oss-120b",
+                    max_tokens=1500,
+                    messages=[{"role": "user", "content": prompt}],
+                    response_format={"type": "json_object"},
+                    timeout=20
+                )
+                raw_text = response.choices[0].message.content.strip()
+                return json.loads(raw_text)
+            except json.JSONDecodeError:
+                last_error = "invalid JSON returned"
+                print(f"Failed to parse JSON (attempt {attempt + 1})")
+                if attempt < 2:
+                    time.sleep(1.0)
+                    continue
+            except Exception as e:
+                last_error = e
+                print(f"Extraction attempt {attempt + 1} failed: {e}")
+                if attempt < 2:
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
 
-        raw_text = response.choices[0].message.content.strip()
-
-        try:
-            return json.loads(raw_text)
-        except json.JSONDecodeError:
-            print("Failed to parse JSON:", raw_text)
-            return {"entities": [], "facts": [], "relationships": []}
+        print(f"Extraction failed after all retries: {last_error}")
+        return {"entities": [], "facts": [], "relationships": []}
