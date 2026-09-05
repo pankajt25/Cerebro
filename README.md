@@ -18,16 +18,37 @@ FalkorDB isn't a bolt-on visualization — it's the agent's actual memory. Every
 Remove FalkorDB, and the agent has no memory at all — it becomes a stateless search-and-summarize tool.
 
 ## Architecture
-User query
-│
-▼
-Tavily web search ──► Groq LLM extraction (entities, facts, relationships)
-│ │
-│ ▼
-│ FalkorDB write (nodes + edges)
-│
-▼
-FalkorDB cross-session query ──► Recalled context surfaced in the UI 
+                 ┌─────────────┐
+                 │  User query │
+                 └──────┬──────┘
+                        │
+                        ▼
+              ┌───────────────────┐
+              │ Tavily web search  │
+              └─────────┬──────────┘
+                        │
+                        ▼
+    ┌───────────────────────────────────┐
+    │ Groq LLM extraction                │
+    │ (entities, facts, relationships)   │
+    └───────────────┬─────────────────────┘
+                     │
+                     ▼
+            ┌─────────────────────┐
+            │ FalkorDB write        │
+            │ (nodes + edges)       │
+            └──────────┬────────────┘
+                       │
+                       ▼
+          ┌─────────────────────────────┐
+          │ FalkorDB cross-session query │
+          └──────────────┬────────────────┘
+                          │
+                          ▼
+             ┌─────────────────────────┐
+             │ Recalled context surfaced │
+             │ in the UI                 │
+             └────────────────────────────┘
 
 ## Graph Data Model
 
@@ -37,7 +58,7 @@ FalkorDB cross-session query ──► Recalled context surfaced in the UI
 | `Session` | id, timestamp, topic |
 | `Query` | id, text, timestamp |
 | `Entity` | name, type |
-| `Fact` | id, text, confidence |
+| `Fact` | id, text, confidence, last_updated |
 | `Source` | url |
 
 **Relationships**
@@ -71,7 +92,7 @@ RETURN DISTINCT e2.name, e2.type
 ```cypher
 MERGE (e:Entity {name: $entity_name})
 ON CREATE SET e.type = $entity_type
-CREATE (f:Fact {id: $fact_id, text: $fact_text, confidence: $confidence})
+CREATE (f:Fact {id: $fact_id, text: $fact_text, confidence: $confidence, last_updated: $ts})
 CREATE (f)-[:ABOUT]->(e)
 MERGE (src:Source {url: $source_url})
 CREATE (f)-[:SOURCED_FROM]->(src)
@@ -123,6 +144,13 @@ streamlit run app.py
 | `FALKORDB_PORT` | FalkorDB port |
 | `FALKORDB_USERNAME` | Only needed for FalkorDB Cloud |
 | `FALKORDB_PASSWORD` | Only needed for FalkorDB Cloud |
+
+## Resilience Features
+- Automatic retry with exponential backoff on transient search/extraction failures
+- Oversized queries are truncated before hitting search API limits
+- Graph write failures are isolated per-step so one failure doesn't block the rest of the pipeline
+- Manual retry button in the UI when a query genuinely can't be completed
+- Fact staleness tracking (7-day threshold) so knowledge refreshes naturally over time
 
 ## AI Coding Assistant Disclosure
 This project was built with assistance from **Claude** (Anthropic) for code scaffolding, debugging, and architectural guidance. All code was reviewed, tested, and is understood by the participant. The graph data model, query design, and product decisions were made and validated by the participant throughout development.
