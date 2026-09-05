@@ -24,31 +24,31 @@ Remove FalkorDB, and the agent has no memory at all — it becomes a stateless s
                         │
                         ▼
               ┌───────────────────┐
-              │ Tavily web search  │
-              └─────────┬──────────┘
+              │ Tavily web search │
+              └─────────┬─────────┘
                         │
                         ▼
     ┌───────────────────────────────────┐
-    │ Groq LLM extraction                │
-    │ (entities, facts, relationships)   │
-    └───────────────┬─────────────────────┘
+    │ Groq LLM extraction               │
+    │ (entities, facts, relationships)  │
+    └───────────────┬───────────────────┘
                      │
                      ▼
             ┌─────────────────────┐
-            │ FalkorDB write        │
-            │ (nodes + edges)       │
-            └──────────┬────────────┘
+            │ FalkorDB write      │
+            │ (nodes + edges)     │
+            └──────────┬──────────┘
                        │
                        ▼
           ┌─────────────────────────────┐
-          │ FalkorDB cross-session query │
-          └──────────────┬────────────────┘
+          │ FalkorDB cross-session query│
+          └──────────────┬──────────────┘
                           │
                           ▼
              ┌─────────────────────────┐
-             │ Recalled context surfaced │
-             │ in the UI                 │
-             └────────────────────────────┘
+             │ Recalled context surfaced│
+             │ in the UI                │
+             └──────────────────────────┘
 
 ## Graph Data Model
 
