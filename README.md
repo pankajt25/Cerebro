@@ -20,39 +20,15 @@ FalkorDB isn't a bolt-on visualization — it's the agent's actual memory. Every
 Remove FalkorDB, and the agent has no memory at all — it becomes a stateless search-and-summarize tool.
 
 ## Architecture
-    ┌────────────────────────┐
-    │        User Query        │
-    └────────────┬─────────────┘
-                 │
-                 ▼
-    ┌────────────────────────┐
-    │    Tavily Web Search      │
-    └────────────┬─────────────┘
-                 │
-                 ▼
-    ┌────────────────────────┐
-    │     Groq Extraction       │
-    │ (entities, facts,         │
-    │   relationships)          │
-    └────────────┬─────────────┘
-                 │
-                 ▼
-    ┌────────────────────────┐
-    │     FalkorDB Write        │
-    │   (nodes + edges)         │
-    └────────────┬─────────────┘
-                 │
-                 ▼
-    ┌────────────────────────┐
-    │  Cross-Session Query      │
-    │      (FalkorDB)           │
-    └────────────┬─────────────┘
-                 │
-                 ▼
-    ┌────────────────────────┐
-    │    Recalled Context       │
-    │   Surfaced in the UI      │
-    └────────────────────────┘
+
+```mermaid
+flowchart TD
+    A[User Query] --> B[Tavily Web Search]
+    B --> C["Groq Extraction<br/>(entities, facts, relationships)"]
+    C --> D["FalkorDB Write<br/>(nodes + edges)"]
+    D --> E["Cross-Session Query<br/>(FalkorDB)"]
+    E --> F[Recalled Context Surfaced in the UI]
+```
 
 ## Graph Data Model
 
