@@ -6,6 +6,8 @@ Cerebro remembers what you've researched across sessions. Every question is rese
 
 🔗 **Live demo**: [cerebro-hackathon.streamlit.app](https://cerebro-hackathon.streamlit.app)
 
+> ⚠️ **Note on the live demo**: The FalkorDB Cloud free-tier instance backing this app auto-stops after a period of inactivity to conserve resources. If the live demo shows a connection error, the instance likely needs a manual restart from the FalkorDB Cloud dashboard — this is a free-tier limitation, not an application bug. The demo video below shows the app fully working end-to-end.
+
 ## Track
 **Best Agentic AI Use Case** — WeMakeDevs x FalkorDB Graph Hacks
 
@@ -18,37 +20,39 @@ FalkorDB isn't a bolt-on visualization — it's the agent's actual memory. Every
 Remove FalkorDB, and the agent has no memory at all — it becomes a stateless search-and-summarize tool.
 
 ## Architecture
-                 ┌─────────────┐
-                 │  User query │
-                 └──────┬──────┘
-                        │
-                        ▼
-              ┌───────────────────┐
-              │ Tavily web search │
-              └─────────┬─────────┘
-                        │
-                        ▼
-    ┌───────────────────────────────────┐
-    │ Groq LLM extraction               │
-    │ (entities, facts, relationships)  │
-    └───────────────┬───────────────────┘
-                     │
-                     ▼
-            ┌─────────────────────┐
-            │ FalkorDB write      │
-            │ (nodes + edges)     │
-            └──────────┬──────────┘
-                       │
-                       ▼
-          ┌─────────────────────────────┐
-          │ FalkorDB cross-session query│
-          └──────────────┬──────────────┘
-                          │
-                          ▼
-             ┌─────────────────────────┐
-             │ Recalled context surfaced│
-             │ in the UI                │
-             └──────────────────────────┘
+    ┌────────────────────────┐
+    │        User Query        │
+    └────────────┬─────────────┘
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │    Tavily Web Search      │
+    └────────────┬─────────────┘
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │     Groq Extraction       │
+    │ (entities, facts,         │
+    │   relationships)          │
+    └────────────┬─────────────┘
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │     FalkorDB Write        │
+    │   (nodes + edges)         │
+    └────────────┬─────────────┘
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │  Cross-Session Query      │
+    │      (FalkorDB)           │
+    └────────────┬─────────────┘
+                 │
+                 ▼
+    ┌────────────────────────┐
+    │    Recalled Context       │
+    │   Surfaced in the UI      │
+    └────────────────────────┘
 
 ## Graph Data Model
 
