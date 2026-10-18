@@ -11,7 +11,7 @@ Cerebro remembers what you've researched across sessions. Every question is rese
 > ⚠️ **Note on the live demo**: The FalkorDB Cloud free-tier instance backing this app auto-stops after a period of inactivity to conserve resources. If the live demo shows a connection error, the instance likely needs a manual restart from the FalkorDB Cloud dashboard — this is a free-tier limitation, not an application bug. The demo video below shows the app fully working end-to-end.
 
 ## Track
-**Best Agentic AI Use Case** — WeMakeDevs x FalkorDB Graph Hacks
+**Agent Memory and Coordination** — WeMakeDevs x FalkorDB Graph Hacks
 
 ## Why FalkorDB does real work here
 FalkorDB isn't a bolt-on visualization — it's the agent's actual memory. Every query the agent handles:
