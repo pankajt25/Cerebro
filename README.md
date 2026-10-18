@@ -6,6 +6,8 @@ Cerebro remembers what you've researched across sessions. Every question is rese
 
 🔗 **Live demo**: [cerebro-hackathon.streamlit.app](https://cerebro-hackathon.streamlit.app)
 
+🎬 **Demo video**: [Watch on YouTube](https://www.youtube.com/watch?v=rdOh0rsnpjo)
+
 > ⚠️ **Note on the live demo**: The FalkorDB Cloud free-tier instance backing this app auto-stops after a period of inactivity to conserve resources. If the live demo shows a connection error, the instance likely needs a manual restart from the FalkorDB Cloud dashboard — this is a free-tier limitation, not an application bug. The demo video below shows the app fully working end-to-end.
 
 ## Track
@@ -136,4 +138,4 @@ streamlit run app.py
 This project was built with assistance from **Claude** (Anthropic) for code scaffolding, debugging, and architectural guidance. All code was reviewed, tested, and is understood by the participant. The graph data model, query design, and product decisions were made and validated by the participant throughout development.
 
 ## Demo
-[Demo video link — to be added]
+[Watch the demo on YouTube](https://www.youtube.com/watch?v=rdOh0rsnpjo)
